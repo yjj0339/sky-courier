@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#7EC8F5" />
+<title>浮空岛快递 · Sky Courier</title>
+<meta name="description" content="浮空岛快递 —— 驾驶珊瑚橙小飞机穿越云海浮岛，完成五份天空快递订单的 3D 网页游戏。" />
+<link rel="stylesheet" href="./styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='52' font-size='52'>✈️</text></svg>" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app">
+  <canvas id="scene"></canvas>
+
+  <!-- ══════════════ HUD ══════════════ -->
+  <div id="hud" class="hud" hidden>
+    <div class="hud-top">
+      <div class="panel route-badge">
+        <div class="route-line">
+          <span class="route-post" data-i18n="hud.post">天空邮局</span>
+          <span class="route-sep">·</span>
+          <span class="route-no" data-i18n="hud.route">第 7 航线</span>
+        </div>
+        <div class="route-progress">
+          <div class="route-track"><div class="route-fill" id="routeFill"></div></div>
+          <span class="route-text" id="routeText">0 / 5</span>
+        </div>
+      </div>
+
+      <div class="hud-right">
+        <div class="panel score-badge">
+          <div class="score-row">
+            <span class="score-label" data-i18n="hud.score">得分</span>
+            <span class="score-value" id="scoreValue">0</span>
+          </div>
+          <div class="score-row best">
+            <span class="score-label" data-i18n="hud.best">最高分</span>
+            <span class="score-value" id="bestValue">0</span>
+          </div>
+        </div>
+
+        <button class="icon-btn pause-btn" id="pauseBtn" aria-label="暂停">
+          <svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 目标指示 -->
+    <div class="target-arrow" id="targetArrow" hidden>
+      <svg viewBox="0 0 40 40" class="arrow-svg"><path d="M20 3 L33 30 L20 23 L7 30 Z"/></svg>
+      <div class="target-label">
+        <span id="targetName">—</span>
+        <span class="target-dist" id="targetDist">0 m</span>
+      </div>
+    </div>
+
+    <!-- 订单清单 -->
+    <div class="panel order-list" id="orderList" hidden>
+      <div class="order-list-title" data-i18n="hud.orders">天空快递订单</div>
+      <ul id="orderItems"></ul>
+    </div>
+
+    <!-- 冲刺计时 -->
+    <div class="panel sprint-timer" id="sprintTimer" hidden>
+      <span class="timer-value" id="timerValue">60.0</span>
+      <span class="timer-label" data-i18n="hud.time">剩余秒数</span>
+    </div>
+
+    <!-- 速度 / 加速 -->
+    <div class="panel gauge-panel">
+      <div class="gauge">
+        <div class="gauge-head">
+          <span data-i18n="hud.speed">速度</span>
+          <span class="gauge-num"><span id="speedValue">0</span> <em data-i18n="hud.unit">km/h</em></span>
+        </div>
+        <div class="bar speed-bar"><div class="bar-fill" id="speedFill"></div></div>
+      </div>
+      <div class="gauge">
+        <div class="gauge-head">
+          <span data-i18n="hud.boost">推进</span>
+          <span class="gauge-num" id="boostPct">100%</span>
+        </div>
+        <div class="bar boost-bar"><div class="bar-fill" id="boostFill"></div></div>
+      </div>
+    </div>
+
+    <!-- 小地图 -->
+    <div class="panel minimap-panel" id="minimapPanel">
+      <canvas id="minimap" width="240" height="240"></canvas>
+      <div class="minimap-label" data-i18n="hud.map">空域图</div>
+    </div>
+
+    <!-- 提示气泡 -->
+    <div class="toast-wrap" id="toastWrap"></div>
+
+    <!-- 移动端触控 -->
+    <div class="touch-layer" id="touchLayer" hidden>
+      <div class="stick" id="stick"><div class="stick-knob" id="stickKnob"></div></div>
+      <div class="boost-btn" id="boostBtn"><span data-i18n="touch.boost">推进</span></div>
+    </div>
+
+    <!-- 暂停按钮已移入 .hud-right -->
+  </div>
+
+  <!-- ══════════════ 开始界面 ══════════════ -->
+  <div id="start" class="screen">
+    <div class="start-inner">
+      <header class="brand">
+        <div class="brand-badge" data-i18n="start.badge">天空邮局 · 第 7 航线</div>
+        <h1 class="brand-title" data-i18n="start.title">浮空岛快递</h1>
+        <p class="brand-sub" data-i18n="start.sub">驾驶珊瑚橙小飞机，穿过云海浮岛，把五份包裹准时送到收件人手里。</p>
+      </header>
+
+      <div class="mode-grid">
+        <button class="mode-card" data-mode="free">
+          <span class="mode-icon">🕊️</span>
+          <span class="mode-name" data-i18n="mode.free.name">自由飞行</span>
+          <span class="mode-desc" data-i18n="mode.free.desc">没有订单，没有终点。穿过金色风环刷新你的飞行纪录。</span>
+          <span class="mode-best"><span data-i18n="mode.best">最高分</span> <b data-best="free">0</b></span>
+        </button>
+
+        <button class="mode-card" data-mode="sprint">
+          <span class="mode-icon">🌪️</span>
+          <span class="mode-name" data-i18n="mode.sprint.name">风环冲刺</span>
+          <span class="mode-desc" data-i18n="mode.sprint.desc">限时 60 秒，连穿风环不断加速。每多一个风环，分数就翻一截。</span>
+          <span class="mode-best"><span data-i18n="mode.best">最高分</span> <b data-best="sprint">0</b></span>
+        </button>
+
+        <button class="mode-card featured" data-mode="orders">
+          <span class="mode-icon">📦</span>
+          <span class="mode-name" data-i18n="mode.orders.name">天空快递订单</span>
+          <span class="mode-desc" data-i18n="mode.orders.desc">五份订单，按路线依次送达五座浮空岛。跟着金色风环走，不会迷路。</span>
+          <span class="mode-best"><span data-i18n="mode.best">最高分</span> <b data-best="orders">0</b></span>
+        </button>
+      </div>
+
+      <div class="start-foot">
+        <button class="pill-btn" id="soundBtn">
+          <span class="pill-icon" id="soundIcon">🔊</span>
+          <span data-i18n="start.sound">音效</span>
+        </button>
+        <button class="pill-btn" id="langBtn">
+          <span class="pill-icon">🌐</span>
+          <span id="langLabel">中文</span>
+        </button>
+        <div class="controls-hint">
+          <span><kbd>W</kbd><kbd>S</kbd> <span data-i18n="hint.vert">升降</span></span>
+          <span><kbd>A</kbd><kbd>D</kbd> <span data-i18n="hint.turn">转向</span></span>
+          <span><kbd>Space</kbd> <span data-i18n="hint.boost">加速</span></span>
+        </div>
+      </div>
+
+      <div class="loading-note" id="loadingNote" data-i18n="start.loading">正在装载模型包…</div>
+    </div>
+  </div>
+
+  <!-- ══════════════ 暂停 ══════════════ -->
+  <div id="pause" class="screen dim" hidden>
+    <div class="dialog">
+      <h2 data-i18n="pause.title">已暂停</h2>
+      <div class="dialog-stats">
+        <div><span data-i18n="hud.score">得分</span><b id="pauseScore">0</b></div>
+        <div><span data-i18n="hud.best">最高分</span><b id="pauseBest">0</b></div>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn primary" id="resumeBtn" data-i18n="pause.resume">继续飞行</button>
+        <button class="btn" id="restartBtn" data-i18n="pause.restart">重新开始</button>
+        <button class="btn" id="endBtn" data-i18n="pause.end">结束并记录成绩</button>
+        <button class="btn ghost" id="menuBtn" data-i18n="pause.menu">返回主菜单</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ 结算 ══════════════ -->
+  <div id="result" class="screen dim" hidden>
+    <div class="dialog">
+      <h2 id="resultTitle" data-i18n="result.title">本次成绩</h2>
+      <div class="result-score" id="resultScore">0</div>
+      <div class="result-best" id="resultBest"></div>
+      <div class="dialog-stats" id="resultStats"></div>
+      <div class="dialog-actions">
+        <button class="btn primary" id="againBtn" data-i18n="result.again">再来一次</button>
+        <button class="btn ghost" id="resultMenuBtn" data-i18n="pause.menu">返回主菜单</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

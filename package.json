@@ -1,0 +1,19 @@
+{
+  "name": "sky-courier",
+  "version": "1.0.0",
+  "description": "浮空岛快递 · Sky Courier —— 驾驶珊瑚橙小飞机穿越云海浮岛完成天空快递订单的 3D 网页游戏 (Three.js)",
+  "private": true,
+  "scripts": {
+    "start": "node serve.js 8189",
+    "serve": "node serve.js 8189",
+    "build:model": "node tools/build-plane-model.mjs",
+    "verify:model": "node tools/verify-model.mjs",
+    "check": "node tools/check-syntax.mjs"
+  },
+  "keywords": ["three.js", "webgl", "game", "3d", "flying", "low-poly"],
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "three": "^0.187.0"
+  }
+}

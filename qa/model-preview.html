@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>模型包预览 · coral-plane.glb</title>
+<style>
+  html,body{margin:0;height:100%;background:#cfeafc;overflow:hidden;
+    font-family:"Microsoft YaHei",system-ui,sans-serif;color:#23304a}
+  #hint{position:fixed;left:14px;top:12px;background:rgba(255,255,255,.9);
+    padding:8px 14px;border-radius:10px;font-size:13px;font-weight:700;z-index:5}
+  #status{position:fixed;right:14px;top:12px;background:rgba(255,255,255,.9);
+    padding:8px 14px;border-radius:10px;font-size:12px;z-index:5}
+</style>
+<script type="importmap">
+{ "imports": { "three": "../vendor/three.module.js" } }
+</script>
+</head>
+<body>
+<div id="hint">飞机模型包预览 · coral-plane.glb</div>
+<div id="status">loading…</div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from '../vendor/GLTFLoader.js';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NeutralToneMapping;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#cfeafc');
+const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 100);
+
+scene.add(new THREE.HemisphereLight(0xd6f0ff, 0xf7e0c0, 2.9));
+const sun = new THREE.DirectionalLight(0xfff4de, 3.1);
+sun.position.set(6, 9, 7);
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xbfe4ff, 1.1);
+fill.position.set(-7, 4, -6);
+scene.add(fill);
+
+const url = new URL('../assets/models/coral-plane.glb', import.meta.url).href;
+new GLTFLoader().load(url, (gltf) => {
+  const model = gltf.scene;
+  scene.add(model);
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const ctr = box.getCenter(new THREE.Vector3());
+
+  // 等比放大到便于观察
+  const s = 12 / Math.max(size.x, size.y, size.z);
+  model.scale.setScalar(s);
+  model.position.set(-ctr.x * s, -ctr.y * s, -ctr.z * s);
+
+  const prop = gltf.scene.getObjectByName('Propeller');
+  const cargo = gltf.scene.getObjectByName('Cargo');
+
+  // 3/4 视角
+  const R = 22;
+  camera.position.set(R * 0.75, R * 0.42, R * 0.82);
+  camera.lookAt(0, 0, 0);
+
+  document.getElementById('status').textContent =
+    `节点: ${gltf.scene.children.map(c=>c.name||c.type).join(', ')} | ` +
+    `尺寸: ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)} | ` +
+    `螺旋桨: ${prop ? '有' : '无'} | 包裹: ${cargo ? (cargo.visible ? '有' : '隐藏') : '无'}`;
+
+  let t = 0;
+  (function loop() {
+    requestAnimationFrame(loop);
+    t += 0.016;
+    if (prop) prop.rotation.z = t * 2.2;
+    renderer.render(scene, camera);
+  })();
+}, undefined, (err) => {
+  document.getElementById('status').textContent = '加载失败: ' + err;
+});
+</script>
+</body>
+</html>
